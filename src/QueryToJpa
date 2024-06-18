@@ -147,5 +147,62 @@ public class OmrUiDomainAppRegMap {
 }
 
 
+public interface OmrLaacRepository extends JpaRepository<OmrLaac, String> {
+    
+    @Query("SELECT o.gcrs FROM OmrLaac o " +
+           "WHERE (o.countryCode = 'ALL') " +
+           "OR (o.countryCode = :countryCode AND o.accessType = 'Includes' AND o.gcrs IN " +
+           "(SELECT DISTINCT s.gcrsCode FROM TrbUiSecurityModel s " +
+           "JOIN s.map m " +
+           "WHERE s.locationRight = :locationRight " +
+           "AND s.businessLine = 'IB' " +
+           "AND s.is2faAuthenticated = 'Y' " +
+           "AND s.active = 'X')) " +
+           "AND o.gcrs NOT IN " +
+           "(SELECT o2.gcrs FROM OmrLaac o2 " +
+           "WHERE o2.countryCode = :countryCode AND o2.accessType = 'Excludes')")
+    List<String> findGcrsByCountryCodeAndLocationRight(@Param("countryCode") String countryCode, @Param("locationRight") String locationRight);
+}
+
+public interface TrbUiSecurityModelRepository extends JpaRepository<TrbUiSecurityModel, String> {
+}
+
+public interface OmrUiDomainAppRegMapRepository extends JpaRepository<OmrUiDomainAppRegMap, String> {
+}
+
+public interface Trb2kpRegulatorRepository extends JpaRepository<Trb2kpRegulator, String> {
+}
+
+
+@Service
+public class OmrLaacService {
+
+    @Autowired
+    private OmrLaacRepository omrLaacRepository;
+
+    public List<String> findGcrs(String countryCode, String locationRight) {
+        return omrLaacRepository.findGcrsByCountryCodeAndLocationRight(countryCode, locationRight);
+    }
+}
+
+
+
+@RestController
+@RequestMapping("/api/omr-laac")
+public class OmrLaacController {
+
+    @Autowired
+    private OmrLaacService omrLaacService;
+
+    @GetMapping("/gcrs")
+    public ResponseEntity<List<String>> getGcrs(@RequestParam String countryCode, @RequestParam String locationRight) {
+        List<String> gcrs = omrLaacService.findGcrs(countryCode, locationRight);
+        return ResponseEntity.ok(gcrs);
+    }
+}
+
+
+
+
 
 
