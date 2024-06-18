@@ -203,6 +203,36 @@ public class OmrLaacController {
 
 
 
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+
+public interface OmrLaacRepository extends JpaRepository<OmrLaac, Long> {
+
+    @Query("SELECT o.gcrs " +
+           "FROM OmrLaac o " +
+           "WHERE (o.countryCode = 'ALL' " +
+           "    OR (o.countryCode = :countryCode AND o.accessType = 'Includes')) " +
+           "AND o.gcrs NOT IN (" +
+           "    SELECT o2.gcrs " +
+           "    FROM OmrLaac o2 " +
+           "    WHERE o2.countryCode = :countryCode AND o2.accessType = 'Excludes') " +
+           "AND o.gcrs IN (" +
+           "    SELECT DISTINCT t.gcrsCode " +
+           "    FROM TrbUiSecurityModel t " +
+           "    JOIN OmrUiDomainAppRegMap map ON map.regulation = t.regulation " +
+           "    LEFT JOIN Trb2kpRegulator reg ON reg.regulator = map.regulator " +
+           "    WHERE t.locationRight IS NOT NULL " +
+           "        AND t.businessLine = 'IB' " +
+           "        AND t.is2faAuthenticated = 'Y' " +
+           "        AND t.active = 'X')")
+    List<String> findFilteredGcrsCodes(@Param("countryCode") String countryCode);
+}
+
+
+
 
 
 
