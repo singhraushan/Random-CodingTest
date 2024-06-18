@@ -1,0 +1,151 @@
+@Entity
+@Table(name = "OMR_LAAC")
+public class OmrLaac {
+    @Id
+    @Column(name = "GCRS")
+    private String gcrs;
+
+    @Column(name = "COUNTRY_CODE")
+    private String countryCode;
+
+    @Column(name = "ACCESS_TYPE")
+    private String accessType;
+
+    // Getters and setters
+}
+
+@Entity
+@Table(name = "OMR_UI_DOMAIN_APP_REG_MAP")
+public class OmrUiDomainAppRegMap {
+    @Id
+    @Column(name = "REGULATION")
+    private String regulation;
+
+    @Column(name = "DOCUMENT_TYPE")
+    private String documentType;
+
+    @Column(name = "SEARCH_PATTERN")
+    private String searchPattern;
+
+    @Column(name = "CANONICAL_APPLICATION")
+    private String application;
+
+    @Column(name = "DISPLAY_REGULATION")
+    private String displayRegulation;
+
+    @Column(name = "ACTIVE")
+    private String active;
+
+    @Column(name = "TRB_TRADE_REPLAY_COLUMN")
+    private String selectRegulation;
+
+    // Getters and setters
+}
+
+@Entity
+@Table(name = "TRB_2KP_REGULATOR")
+public class Trb2kpRegulator {
+    @Id
+    @Column(name = "REGULATOR")
+    private String regulator;
+
+    @Column(name = "BINARY_CODE")
+    private String binaryCode;
+
+    @Column(name = "DRY_RUN_APPLICABLE")
+    private String dryRunApplicable;
+
+    // Getters and setters
+}
+
+@Entity
+@Table(name = "TRB_UI_SECURITY_MODEL")
+public class TrbUiSecurityModel {
+    @Id
+    @Column(name = "GCRS_CODE")
+    private String gcrsCode;
+
+    @Column(name = "LOCATION_RIGHT")
+    private String locationRight;
+
+    @Column(name = "BUSINESS_LINE")
+    private String businessLine;
+
+    @Column(name = "IS_2FA_AUTHENTICATED")
+    private String is2faAuthenticated;
+
+    @Column(name = "ACTIVE")
+    private String active;
+
+    @Column(name = "SECURITY_MODEL_REGULATION")
+    private String securityModelRegulation;
+
+    // Getters and setters
+}
+
+String query = "SELECT o.gcrs FROM OmrLaac o " +
+               "WHERE (o.countryCode = 'ALL') " +
+               "OR (o.countryCode = :countryCode AND o.accessType = 'Includes' AND o.gcrs IN " +
+               "(SELECT DISTINCT s.gcrsCode FROM TrbUiSecurityModel s " +
+               "JOIN s.regulation r " +
+               "JOIN r.map m " +
+               "WHERE s.locationRight = :locationRight " +
+               "AND s.businessLine = 'IB' " +
+               "AND s.is2faAuthenticated = 'Y' " +
+               "AND s.active = 'X')) " +
+               "AND o.gcrs NOT IN " +
+               "(SELECT o2.gcrs FROM OmrLaac o2 " +
+               "WHERE o2.countryCode = :countryCode AND o2.accessType = 'Excludes')";
+
+
+TypedQuery<String> typedQuery = entityManager.createQuery(query, String.class);
+typedQuery.setParameter("countryCode", countryCode);
+typedQuery.setParameter("locationRight", locationRight);
+
+List<String> results = typedQuery.getResultList();
+
+
+@Entity
+@Table(name = "TRB_UI_SECURITY_MODEL")
+public class TrbUiSecurityModel {
+    @Id
+    @Column(name = "GCRS_CODE")
+    private String gcrsCode;
+
+    @Column(name = "LOCATION_RIGHT")
+    private String locationRight;
+
+    @Column(name = "BUSINESS_LINE")
+    private String businessLine;
+
+    @Column(name = "IS_2FA_AUTHENTICATED")
+    private String is2faAuthenticated;
+
+    @Column(name = "ACTIVE")
+    private String active;
+
+    @ManyToOne
+    @JoinColumn(name = "SECURITY_MODEL_REGULATION", referencedColumnName = "REGULATION")
+    private OmrUiDomainAppRegMap map;
+
+    // Getters and setters
+}
+
+@Entity
+@Table(name = "OMR_UI_DOMAIN_APP_REG_MAP")
+public class OmrUiDomainAppRegMap {
+    @Id
+    @Column(name = "REGULATION")
+    private String regulation;
+
+    // other fields...
+
+    @OneToMany(mappedBy = "map")
+    private List<TrbUiSecurityModel> securityModels;
+
+    // Getters and setters
+}
+
+
+
+
