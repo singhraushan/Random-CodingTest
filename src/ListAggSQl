@@ -1,0 +1,24 @@
+SELECT
+    A.id,
+    A.name,
+    A.sid,
+    A.fin,
+    A.noc,
+    B.error_codes,
+    B.error_descriptions
+FROM
+    TableA A
+LEFT JOIN (
+    SELECT
+        b.sid,
+        b.fin,
+        LISTAGG(b.error_code, '|') WITHIN GROUP (ORDER BY b.error_code) AS error_codes,
+        LISTAGG(b.error_desc, '|') WITHIN GROUP (ORDER BY b.error_desc) AS error_descriptions
+    FROM
+        TableB b
+    GROUP BY
+        b.sid,
+        b.fin
+) B ON A.sid = B.sid AND A.fin = B.fin
+WHERE
+    A.status = 'pass';
