@@ -12,7 +12,7 @@ public class DataProcessingService {
     }
 
     public void processAndSendData(List<YourDataModel> dataList) {
-        List<Future<Void>> futures = new ArrayList<>();
+        List<Future<List<SendResult<String, String>>>> futures = new ArrayList<>();
 
         for (int i = 0; i < 5; i++) {
             int start = i * (dataList.size() / 5);
@@ -20,18 +20,15 @@ public class DataProcessingService {
 
             List<YourDataModel> partition = dataList.subList(start, end);
 
-            Future<Void> future = executorService.submit(() -> {
-                sendToKafka(partition);
-                return null;
-            });
-
+            Future<List<SendResult<String, String>>> future = executorService.submit(() -> sendToKafka(partition));
             futures.add(future);
         }
 
-        // Wait for all threads to complete
-        for (Future<Void> future : futures) {
+        // Wait for all threads to complete and collect results
+        List<SendResult<String, String>> allResults = new ArrayList<>();
+        for (Future<List<SendResult<String, String>>> future : futures) {
             try {
-                future.get();
+                allResults.addAll(future.get());
             } catch (InterruptedException | ExecutionException e) {
                 e.printStackTrace();
             }
@@ -39,10 +36,18 @@ public class DataProcessingService {
 
         // Update the status in the database after all messages are sent
         updateStatusInDatabase(dataList);
+
+        // Optionally process the results (e.g., log success/failure)
+        allResults.forEach(result -> {
+            // Process each result
+            System.out.println("Message sent to Kafka with offset: " + result.getRecordMetadata().offset());
+        });
     }
 
     @Transactional
-    public void sendToKafka(List<YourDataModel> dataList) {
+    public List<SendResult<String, String>> sendToKafka(List<YourDataModel> dataList) {
+        List<SendResult<String, String>> results = new ArrayList<>();
+
         kafkaTemplate.executeInTransaction(operations -> {
             List<ListenableFuture<SendResult<String, String>>> futures = new ArrayList<>();
             for (YourDataModel data : dataList) {
@@ -54,6 +59,7 @@ public class DataProcessingService {
                 future.addCallback(new ListenableFutureCallback<SendResult<String, String>>() {
                     @Override
                     public void onSuccess(SendResult<String, String> result) {
+                        results.add(result);
                         System.out.println("Message sent to Kafka with offset: " + result.getRecordMetadata().offset());
                     }
 
@@ -67,7 +73,7 @@ public class DataProcessingService {
             // Optionally, you can block and wait for all futures to complete if you need to ensure all messages are sent
             futures.forEach(f -> {
                 try {
-                    f.get(); // Block and wait for future to complete
+                    results.add(f.get()); // Block and wait for future to complete
                 } catch (InterruptedException | ExecutionException e) {
                     e.printStackTrace();
                 }
@@ -75,6 +81,8 @@ public class DataProcessingService {
 
             return null;
         });
+
+        return results;
     }
 
     @Transactional
