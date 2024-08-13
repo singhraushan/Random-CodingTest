@@ -1,0 +1,85 @@
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+class OverrideResponseVO {
+    String id;
+    String type;
+    ResponseOverrideAttributes attributes;
+
+    // Getters and Setters
+}
+
+class ResponseOverrideAttributes {
+    String tradeDomain;
+    String tradeId;
+    Long tradeVersion;
+    String status;
+    String createdAt;
+    String updatedBy;
+    String updatedAt;
+
+    // Getters and Setters
+}
+
+class TradeQuery {
+    String tradeId;
+    Long version;
+    String dealStore;
+
+    // Constructor, Getters and Setters
+    public TradeQuery(String tradeId, Long version, String dealStore) {
+        this.tradeId = tradeId;
+        this.version = version;
+        this.dealStore = dealStore;
+    }
+}
+
+class TradeDTO {
+    String transactionId;
+    String dealStore;
+    Long transactionVersion;
+    String transactionApprovalStatus;
+    String overrideId;
+
+    // Getters and Setters
+}
+
+public class TradeService {
+
+    public List<TradeDTO> callTradeAPI(List<TradeQuery> tradeQueries) {
+        // Logic to call the API and return List<TradeDTO>
+        // For example, we can just return an empty list here as a placeholder.
+        return List.of();
+    }
+
+    public void processOverrides(List<OverrideResponseVO> overrideResponses) {
+        // Step 1: Prepare List<TradeQuery> from overrideResponses
+        List<TradeQuery> tradeQueries = overrideResponses.stream()
+            .map(override -> new TradeQuery(
+                override.getAttributes().getTradeId(),
+                override.getAttributes().getTradeVersion(),
+                override.getAttributes().getTradeDomain()))
+            .collect(Collectors.toList());
+
+        // Step 2: Call the API to get the List<TradeDTO>
+        List<TradeDTO> tradeDTOs = callTradeAPI(tradeQueries);
+
+        // Step 3: Create a map for quick lookup of TradeDTO based on tradeId, version, and dealStore
+        Map<String, TradeDTO> tradeDTOMap = tradeDTOs.stream()
+            .collect(Collectors.toMap(
+                dto -> dto.getTransactionId() + "_" + dto.getTransactionVersion() + "_" + dto.getDealStore(),
+                dto -> dto
+            ));
+
+        // Step 4: Update the status in overrideResponses based on matching TradeDTO
+        overrideResponses.forEach(override -> {
+            ResponseOverrideAttributes attributes = override.getAttributes();
+            String key = attributes.getTradeId() + "_" + attributes.getTradeVersion() + "_" + attributes.getTradeDomain();
+            TradeDTO matchingDTO = tradeDTOMap.get(key);
+            if (matchingDTO != null) {
+                attributes.setStatus(matchingDTO.getTransactionApprovalStatus());
+            }
+        });
+    }
+}
